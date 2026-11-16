@@ -28,45 +28,51 @@ jobs:
           channel: stable
           cache: true
 
-      # ------------------------------------------------------------------
-      #  Generate the Android scaffolding correctly for the current folder.
-      #  This avoids the "unsupported Gradle project" error.
-      # ------------------------------------------------------------------
+      # Generate Android scaffolding.
       - name: Generate Android project
         run: |
           flutter create . --platforms=android --org com.hisaab --project-name hisaab
+          echo "Listing generated files:"
+          ls -R android
 
+      # Use a more robust check for existence before editing
       - name: Add permissions and disable Lint
         run: |
           python3 - <<'PY'
-          import re, pathlib
+          import re, pathlib, os
 
-          # 1. Add permissions to AndroidManifest.xml
-          p_manifest = pathlib.Path('android/app/src/main/AndroidManifest.xml')
-          xml = p_manifest.read_text()
-          perms = [
-              'android.permission.READ_SMS',
-              'android.permission.RECEIVE_SMS',
-              'android.permission.READ_CONTACTS',
-              'android.permission.CAMERA',
-              'android.permission.READ_MEDIA_IMAGES',
-              'android.permission.VIBRATE',
-          ]
-          block = '\n' + '\n'.join('    <uses-permission android:name="%s"/>' % x for x in perms) + '\n'
-          m = re.search(r'<manifest\b[^>]*>', xml)
-          if m and 'READ_SMS' not in xml:
-              xml = xml[:m.end()] + block + xml[m.end():]
-          xml = xml.replace('android:label="hisaab"', 'android:label="Hisaab"')
-          p_manifest.write_text(xml)
+          manifest_path = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          gradle_path = pathlib.Path('android/app/build.gradle')
 
-          # 2. Disable Lint in app/build.gradle to prevent the toolchain crash
-          p_gradle = pathlib.Path('android/app/build.gradle')
-          gradle = p_gradle.read_text()
-          lint_block = '\n    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n'
-          if 'lintOptions' not in gradle:
-              # Insert inside the android { ... } block
-              gradle = re.sub(r'(android\s*\{)', r'\1' + lint_block, gradle)
-              p_gradle.write_text(gradle)
+          # 1. Manifest
+          if manifest_path.exists():
+              xml = manifest_path.read_text()
+              perms = [
+                  'android.permission.READ_SMS',
+                  'android.permission.RECEIVE_SMS',
+                  'android.permission.READ_CONTACTS',
+                  'android.permission.CAMERA',
+                  'android.permission.READ_MEDIA_IMAGES',
+                  'android.permission.VIBRATE',
+              ]
+              block = '\n' + '\n'.join('    <uses-permission android:name="%s"/>' % x for x in perms) + '\n'
+              m = re.search(r'<manifest\b[^>]*>', xml)
+              if m and 'READ_SMS' not in xml:
+                  xml = xml[:m.end()] + block + xml[m.end():]
+              xml = xml.replace('android:label="hisaab"', 'android:label="Hisaab"')
+              manifest_path.write_text(xml)
+          else:
+              print(f"Warning: {manifest_path} not found")
+
+          # 2. Gradle
+          if gradle_path.exists():
+              gradle = gradle_path.read_text()
+              lint_block = '\n    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n'
+              if 'lintOptions' not in gradle:
+                  gradle = re.sub(r'(android\s*\{)', r'\1' + lint_block, gradle)
+                  gradle_path.write_text(gradle)
+          else:
+              print(f"Warning: {gradle_path} not found")
           PY
 
       - name: Get packages
