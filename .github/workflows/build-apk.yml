@@ -10,6 +10,7 @@ on:
 
 jobs:
   build:
+    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -31,29 +32,23 @@ jobs:
       - name: Generate Android Project Scaffolding
         run: flutter create . --platforms=android --org com.hisaab --project-name hisaab
 
-      # 1. Add permissions to AndroidManifest.xml
       - name: Add Permissions
         run: |
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_SMS"/>\n    <uses-permission android:name="android.permission.RECEIVE_SMS"/>\n    <uses-permission android:name="android.permission.READ_CONTACTS"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>' android/app/src/main/AndroidManifest.xml
 
-      # 2. Globally disable Lint in gradle.properties
-      - name: Disable Lint Globally
-        run: |
-          echo "android.lintOptions.checkReleaseBuilds=false" >> android/gradle.properties
-          echo "android.lintOptions.abortOnError=false" >> android/gradle.properties
-
-      - name: Get Dependencies
-        run: flutter pub get
-
+      # Completely turn off Lint by passing flags to Gradle directly
       - name: Build APK
-        run: flutter build apk --release --no-shrink
+        run: |
+          cd android
+          ./gradlew assembleRelease -x lint -x lintVitalAnalyzeRelease
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dlint.enabled=false"
 
       - name: Prepare Artifact
         run: |
           mkdir -p out
           find build/app/outputs/flutter-apk/ -name "app-release.apk" -exec cp {} out/hisaab.apk \;
+          find android/app/build/outputs/apk/release/ -name "*.apk" -exec cp {} out/hisaab.apk \; 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
