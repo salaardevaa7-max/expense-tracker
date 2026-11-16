@@ -10,30 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Storage. Plain SQLite with hand-written SQL rather than Drift, because
-  # Drift needs a build_runner code-generation pass and a generated file that
-  # does not match its generator is one of the most common CI build failures.
-  # Nothing here generates code, so there is one less thing to go wrong.
-  sqflite: ^2.3.0
+  sqflite: ^2.3.3
   path: ^1.9.0
-  path_provider: ^2.1.0
-
-  # Receipt photos, straight from the camera.
-  image_picker: ^1.1.0
-
-  # Runtime permissions for SMS, contacts and camera. Very stable API.
-  permission_handler: ^11.3.0
-
-  # Picking people from the phone book for splits. Pinned to 1.x on purpose:
-  # the API I call is stable across 1.x, and a surprise 2.0 would break it.
+  path_provider: ^2.1.2
+  image_picker: ^1.1.2
+  permission_handler: ^11.3.1
   flutter_contacts: ^1.1.7
-
-  # Reading the SMS inbox to auto-capture bank debits. Android only — iOS
-  # gives no API for this at all. Left unpinned because this package's
-  # version numbering is the one thing I could not verify, and the surface
-  # this app uses is a single call that has not changed since the original
-  # `telephony` package.
-  another_telephony: any
+  flutter_sms_inbox: ^1.0.0
 
 flutter:
   uses-material-design: true
