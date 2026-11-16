@@ -28,24 +28,22 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate the Android project
+      # ------------------------------------------------------------------
+      #  Generate the Android scaffolding correctly for the current folder.
+      #  This avoids the "unsupported Gradle project" error.
+      # ------------------------------------------------------------------
+      - name: Generate Android project
         run: |
-          flutter create --platforms=android --org com.hisaab --project-name hisaab /tmp/shell
-          rm -rf android
-          cp -r /tmp/shell/android ./android
+          flutter create . --platforms=android --org com.hisaab --project-name hisaab
 
-      - name: Disable Android Lint to prevent toolchain bugs
-        run: |
-          echo "android { lint { checkReleaseBuilds false } }" >> android/app/build.gradle
-
-      - name: Add permissions and the app name to the manifest
+      - name: Add permissions and disable Lint
         run: |
           python3 - <<'PY'
           import re, pathlib
 
-          p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
-          xml = p.read_text()
-
+          # 1. Add permissions to AndroidManifest.xml
+          p_manifest = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          xml = p_manifest.read_text()
           perms = [
               'android.permission.READ_SMS',
               'android.permission.RECEIVE_SMS',
@@ -54,30 +52,35 @@ jobs:
               'android.permission.READ_MEDIA_IMAGES',
               'android.permission.VIBRATE',
           ]
-          block = '\n' + '\n'.join(
-              '    <uses-permission android:name="%s"/>' % x for x in perms) + '\n'
-
+          block = '\n' + '\n'.join('    <uses-permission android:name="%s"/>' % x for x in perms) + '\n'
           m = re.search(r'<manifest\b[^>]*>', xml)
           if m and 'READ_SMS' not in xml:
               xml = xml[:m.end()] + block + xml[m.end():]
-
           xml = xml.replace('android:label="hisaab"', 'android:label="Hisaab"')
-          p.write_text(xml)
+          p_manifest.write_text(xml)
+
+          # 2. Disable Lint in app/build.gradle to prevent the toolchain crash
+          p_gradle = pathlib.Path('android/app/build.gradle')
+          gradle = p_gradle.read_text()
+          lint_block = '\n    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }\n'
+          if 'lintOptions' not in gradle:
+              # Insert inside the android { ... } block
+              gradle = re.sub(r'(android\s*\{)', r'\1' + lint_block, gradle)
+              p_gradle.write_text(gradle)
           PY
 
       - name: Get packages
         run: flutter pub get
 
       - name: Build the release APK
-        run: flutter build apk --release --no-pub
+        run: flutter build apk --release
 
-      - name: Rename it something recognisable
+      - name: Rename and upload
         run: |
           mkdir -p out
           cp build/app/outputs/flutter-apk/app-release.apk out/hisaab.apk
-          ls -lh out
 
-      - name: Upload the APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: hisaab-apk
