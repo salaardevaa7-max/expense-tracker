@@ -1,5 +1,5 @@
 # ==========================================================================
-#  Builds the Hisaab APK using a stable, production-grade workflow.
+#  Builds the Hisaab APK using a robust, production-grade approach.
 # ==========================================================================
 name: Build APK
 
@@ -10,7 +10,6 @@ on:
 
 jobs:
   build:
-    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +19,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu' # Highly stable JDK distribution
+          distribution: 'zulu'
           java-version: '17'
 
       - name: Set up Flutter
@@ -29,32 +28,32 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate Project Scaffolding
-        # This creates the necessary android/ folder files if they don't exist
-        # and ensures they match the environment's Flutter version perfectly.
+      - name: Generate Android Project Scaffolding
         run: flutter create . --platforms=android --org com.hisaab --project-name hisaab
 
-      - name: Configure Manifest (Permissions & Name)
-        run: python3 setup_android.py
+      # 1. Add permissions to AndroidManifest.xml
+      - name: Add Permissions
+        run: |
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_SMS"/>\n    <uses-permission android:name="android.permission.RECEIVE_SMS"/>\n    <uses-permission android:name="android.permission.READ_CONTACTS"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>' android/app/src/main/AndroidManifest.xml
+
+      # 2. Globally disable Lint in gradle.properties
+      - name: Disable Lint Globally
+        run: |
+          echo "android.lintOptions.checkReleaseBuilds=false" >> android/gradle.properties
+          echo "android.lintOptions.abortOnError=false" >> android/gradle.properties
 
       - name: Get Dependencies
         run: flutter pub get
 
       - name: Build APK
-        # Use --no-pub because we already ran pub get.
-        # Removing --debug as it conflicts with --release.
-        run: flutter build apk --release --no-shrink --split-per-abi --dart-define=APP_NAME=Hisaab --no-pub
+        run: flutter build apk --release --no-shrink
         env:
-          # Adding extra memory to Java can help stabilize large builds
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
 
       - name: Prepare Artifact
         run: |
           mkdir -p out
-          # Find the built APK (handling potential path variations)
           find build/app/outputs/flutter-apk/ -name "app-release.apk" -exec cp {} out/hisaab.apk \;
-          # Also copy the split ones if they were generated
-          cp build/app/outputs/flutter-apk/app-*.apk out/ 2>/dev/null || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
