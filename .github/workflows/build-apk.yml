@@ -28,58 +28,19 @@ jobs:
           channel: stable
           cache: true
 
-      # Generate Android scaffolding.
       - name: Generate Android project
-        run: |
-          flutter create . --platforms=android --org com.hisaab --project-name hisaab
+        run: flutter create . --platforms=android --org com.hisaab --project-name hisaab
 
-      # ------------------------------------------------------------------
-      #  Disable Lint completely to prevent the toolchain crash.
-      #  This is done in the app-level build.gradle, which is more
-      #  comprehensive than just `lintOptions` in the android block.
-      # ------------------------------------------------------------------
-      - name: Add permissions and disable Lint
-        run: |
-          python3 - <<'PY'
-          import re, pathlib
-
-          # 1. Manifest
-          manifest_path = pathlib.Path('android/app/src/main/AndroidManifest.xml')
-          if manifest_path.exists():
-              xml = manifest_path.read_text()
-              perms = ['READ_SMS', 'RECEIVE_SMS', 'READ_CONTACTS', 'CAMERA', 'READ_MEDIA_IMAGES', 'VIBRATE']
-              for p in perms:
-                  perm_tag = f'    <uses-permission android:name="android.permission.{p}"/>'
-                  if perm_tag not in xml:
-                      xml = xml.replace('<manifest', '<manifest\n' + perm_tag)
-              xml = xml.replace('android:label="hisaab"', 'android:label="Hisaab"')
-              manifest_path.write_text(xml)
-
-          # 2. Disable Lint
-          gradle_path = pathlib.Path('android/app/build.gradle')
-          if gradle_path.exists():
-              gradle = gradle_path.read_text()
-              lint_config = """
-    lintOptions {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-"""
-              # Insert into the existing android block
-              if 'android {' in gradle:
-                  gradle = gradle.replace('android {', 'android {' + lint_config)
-                  gradle_path.write_text(gradle)
-          PY
+      - name: Configure Android permissions & lint settings
+        run: python3 setup_android.py
 
       - name: Get packages
         run: flutter pub get
 
-      - name: Build the release APK
-        # Use --no-shrink to avoid further complex build optimizations that
-        # often trigger toolchain bugs in these environments.
+      - name: Build release APK
         run: flutter build apk --release --no-shrink
 
-      - name: Rename and upload
+      - name: Prepare artifact
         run: |
           mkdir -p out
           cp build/app/outputs/flutter-apk/app-release.apk out/hisaab.apk
