@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'db.dart';
 import 'models.dart';
 import 'money.dart';
+import 'sms_parser.dart';
 
 class Repo extends ChangeNotifier {
   List<Expense> expenses = [];

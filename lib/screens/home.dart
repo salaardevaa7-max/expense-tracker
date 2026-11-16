@@ -121,7 +121,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            const Heading('Recent Expenses',
+            Heading('Recent Expenses',
                 trailing: Ghost(
                   text: 'Add',
                   icon: Icons.add,
