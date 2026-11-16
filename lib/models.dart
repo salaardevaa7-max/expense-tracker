@@ -226,6 +226,66 @@ class Bill {
       );
 }
 
+/// A non-essential purchase on hold. Helps curb emotional spending.
+class ImpulseBuy {
+  final int? id;
+  final String name;
+  final int amount;
+  final String category;
+  final DateTime at;
+  final bool resolved; // true if decided (to buy or not to buy)
+
+  const ImpulseBuy({
+    this.id,
+    required this.name,
+    required this.amount,
+    this.category = Cat.shopping,
+    required this.at,
+    this.resolved = false,
+  });
+
+  bool get isCool => DateTime.now().difference(at).inHours >= 24;
+
+  Map<String, Object?> toMap() => {
+        if (id != null) 'id': id,
+        'name': name,
+        'amount': amount,
+        'category': category,
+        'at': at.millisecondsSinceEpoch,
+        'resolved': resolved ? 1 : 0,
+      };
+
+  factory ImpulseBuy.fromMap(Map<String, Object?> m) => ImpulseBuy(
+        id: m['id'] as int?,
+        name: (m['name'] as String?) ?? '',
+        amount: (m['amount'] as int?) ?? 0,
+        category: Cat.safe(m['category'] as String?),
+        at: DateTime.fromMillisecondsSinceEpoch((m['at'] as int?) ?? 0),
+        resolved: ((m['resolved'] as int?) ?? 0) == 1,
+      );
+}
+
+/// Custom categorization rule for SMS/Manual entry.
+class Rule {
+  final int? id;
+  final String pattern; // keyword to look for
+  final String category;
+
+  const Rule({this.id, required this.pattern, required this.category});
+
+  Map<String, Object?> toMap() => {
+        if (id != null) 'id': id,
+        'pattern': pattern,
+        'category': category,
+      };
+
+  factory Rule.fromMap(Map<String, Object?> m) => Rule(
+        id: m['id'] as int?,
+        pattern: (m['pattern'] as String?) ?? '',
+        category: Cat.safe(m['category'] as String?),
+      );
+}
+
 /// A debit spotted in the SMS inbox that has not been confirmed yet. Nothing
 /// is written to the ledger from a text message without the person saying so —
 /// bank SMS formats vary too much to be trusted silently.

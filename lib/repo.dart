@@ -12,16 +12,19 @@ import 'db.dart';
 import 'models.dart';
 import 'money.dart';
 import 'sms_parser.dart';
+import 'cloud.dart';
 
 class Repo extends ChangeNotifier {
   List<Expense> expenses = [];
   List<Person> people = [];
   List<Goal> goals = [];
   List<Bill> bills = [];
+  List<ImpulseBuy> impulses = [];
   Map<String, String> settings = {};
   List<Inbox> inbox = [];
 
   bool loading = true;
+  bool isCloudSyncing = false;
 
   Repo() {
     load();
@@ -36,10 +39,49 @@ class Repo extends ChangeNotifier {
     people = await Db.i.people();
     goals = await Db.i.goals();
     bills = await Db.i.bills();
+    impulses = await Db.i.impulses();
     settings = await Db.i.settings();
     inbox = await Db.i.inbox();
 
     loading = false;
+    notifyListeners();
+  }
+
+  // ------------------------------------------------------------------ cloud
+
+  bool get isSignedIn => Cloud.isSignedIn;
+  String? get userEmail => Cloud.userEmail;
+
+  Future<bool> signIn() async {
+    final ok = await Cloud.signIn();
+    notifyListeners();
+    return ok;
+  }
+
+  Future<void> signOut() async {
+    await Cloud.signOut();
+    notifyListeners();
+  }
+
+  Future<void> backup() async {
+    if (!isSignedIn) return;
+    isCloudSyncing = true;
+    notifyListeners();
+    await Cloud.backup();
+    isCloudSyncing = false;
+    notifyListeners();
+  }
+
+  Future<void> restore() async {
+    if (!isSignedIn) return;
+    isCloudSyncing = true;
+    notifyListeners();
+    await Db.i.close();
+    final ok = await Cloud.restore();
+    if (ok) {
+      await load();
+    }
+    isCloudSyncing = false;
     notifyListeners();
   }
 
@@ -53,10 +95,25 @@ class Repo extends ChangeNotifier {
         budget: budget,
       );
 
+  /// Expected spending for the rest of the year based on current active bills.
+  int get yearlyDrain {
+    return bills.where((b) => b.active).fold(0, (sum, b) => sum + (b.amount * 12));
+  }
+
+  /// Projection of total spending at the end of the month based on current pace.
+  int get projectedEndMonth {
+    final p = pulse;
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    if (p.daysGone == 0) return p.spent;
+    return (p.spent / p.daysGone * daysInMonth).round();
+  }
+
   // ------------------------------------------------------------------ actions
 
   Future<void> addExpense(Expense e) async {
     await Db.i.addExpense(e);
+    backup(); // auto-backup after adding
     await load();
   }
 
@@ -92,6 +149,26 @@ class Repo extends ChangeNotifier {
 
   Future<void> updateBill(Bill b) async {
     await Db.i.updateBill(b);
+    await load();
+  }
+
+  Future<void> addImpulse(ImpulseBuy item) async {
+    await Db.i.addImpulse(item);
+    await load();
+  }
+
+  Future<void> resolveImpulse(int id, {bool buy = false, String? note}) async {
+    final item = impulses.firstWhere((i) => i.id == id);
+    if (buy) {
+      await addExpense(Expense(
+        amount: item.amount,
+        category: item.category,
+        note: note ?? item.name,
+        at: DateTime.now(),
+        source: Source.manual,
+      ));
+    }
+    await Db.i.deleteImpulse(id);
     await load();
   }
 

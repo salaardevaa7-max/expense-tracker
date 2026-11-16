@@ -35,6 +35,14 @@ class Db {
     return db;
   }
 
+  Future<void> close() async {
+    final d = _db;
+    if (d != null) {
+      await d.close();
+      _db = null;
+    }
+  }
+
   Future<void> _create(Database d, int version) async {
     await d.execute('''
       CREATE TABLE expenses(
@@ -109,6 +117,16 @@ class Db {
       CREATE TABLE sms_seen(
         fingerprint TEXT PRIMARY KEY,
         at          INTEGER NOT NULL
+      )''');
+
+    await d.execute('''
+      CREATE TABLE impulse(
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        name     TEXT    NOT NULL,
+        amount   INTEGER NOT NULL,
+        category TEXT    NOT NULL DEFAULT 'Shopping',
+        at       INTEGER NOT NULL,
+        resolved INTEGER NOT NULL DEFAULT 0
       )''');
 
     await _seed(d);
@@ -269,6 +287,24 @@ class Db {
   Future<void> deleteBill(int id) async {
     final d = await _handle;
     await d.delete('bills', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ------------------------------------------------------------------ impulse
+
+  Future<List<ImpulseBuy>> impulses() async {
+    final d = await _handle;
+    final rows = await d.query('impulse', orderBy: 'at DESC');
+    return rows.map(ImpulseBuy.fromMap).toList();
+  }
+
+  Future<int> addImpulse(ImpulseBuy i) async {
+    final d = await _handle;
+    return d.insert('impulse', i.toMap());
+  }
+
+  Future<void> deleteImpulse(int id) async {
+    final d = await _handle;
+    await d.delete('impulse', where: 'id = ?', whereArgs: [id]);
   }
 
   // ---------------------------------------------------------------- settings
