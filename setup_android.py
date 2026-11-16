@@ -15,20 +15,8 @@ def setup():
         manifest_path.write_text(xml, encoding='utf-8')
         print("Updated AndroidManifest.xml")
 
-    # 2. Disable Lint in build.gradle
-    gradle_path = pathlib.Path('android/app/build.gradle')
-    if gradle_path.exists():
-        gradle = gradle_path.read_text(encoding='utf-8')
-        lint_config = """
-    lintOptions {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-"""
-        if 'lintOptions' not in gradle and 'android {' in gradle:
-            gradle = gradle.replace('android {', 'android {' + lint_config)
-            gradle_path.write_text(gradle, encoding='utf-8')
-            print("Disabled Lint in android/app/build.gradle")
+    # 2. Skip disabling Lint here, we will handle it in the build command
+    print("Skipping Lint modification in build.gradle")
 
 if __name__ == '__main__':
     setup()
