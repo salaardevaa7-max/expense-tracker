@@ -176,10 +176,10 @@ class _TrendPainter extends CustomPainter {
     canvas.drawPath(path, paint);
 
     // Area under
-    final areaPath = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
+    final areaPath = Path()..addPath(path, Offset.zero);
+    areaPath.lineTo(size.width, size.height);
+    areaPath.lineTo(0, size.height);
+    areaPath.close();
 
     final areaPaint = Paint()
       ..shader = LinearGradient(
