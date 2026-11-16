@@ -53,11 +53,22 @@ class Db {
         at        INTEGER NOT NULL,
         source    TEXT    NOT NULL DEFAULT 'manual',
         photo     TEXT,
-        from_cash INTEGER NOT NULL DEFAULT 0
+        from_cash INTEGER NOT NULL DEFAULT 0,
+        trip_id   INTEGER REFERENCES trips(id) ON DELETE SET NULL
       )''');
     // Every list and every chart is "this month, newest first", so this is
     // the one index that matters.
     await d.execute('CREATE INDEX idx_expenses_at ON expenses(at DESC)');
+
+    await d.execute('''
+      CREATE TABLE trips(
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        name     TEXT    NOT NULL,
+        currency TEXT    NOT NULL DEFAULT 'INR',
+        budget   INTEGER NOT NULL,
+        start    INTEGER NOT NULL,
+        end      INTEGER NOT NULL
+      )''');
 
     await d.execute('''
       CREATE TABLE people(
@@ -305,6 +316,24 @@ class Db {
   Future<void> deleteImpulse(int id) async {
     final d = await _handle;
     await d.delete('impulse', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ------------------------------------------------------------------ trips
+
+  Future<List<Trip>> trips() async {
+    final d = await _handle;
+    final rows = await d.query('trips', orderBy: 'start DESC');
+    return rows.map(Trip.fromMap).toList();
+  }
+
+  Future<int> addTrip(Trip t) async {
+    final d = await _handle;
+    return d.insert('trips', t.toMap());
+  }
+
+  Future<void> deleteTrip(int id) async {
+    final d = await _handle;
+    await d.delete('trips', where: 'id = ?', whereArgs: [id]);
   }
 
   // ---------------------------------------------------------------- settings

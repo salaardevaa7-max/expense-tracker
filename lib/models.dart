@@ -43,6 +43,7 @@ class Expense {
   final String source;
   final String? photo; // absolute path to a receipt image on this device
   final bool fromCash; // paid from the cash wallet rather than a bank account
+  final int? tripId; // Link to a Trip
 
   const Expense({
     this.id,
@@ -53,6 +54,7 @@ class Expense {
     this.source = Source.manual,
     this.photo,
     this.fromCash = false,
+    this.tripId,
   });
 
   Map<String, Object?> toMap() => {
@@ -64,6 +66,7 @@ class Expense {
         'source': source,
         'photo': photo,
         'from_cash': fromCash ? 1 : 0,
+        'trip_id': tripId,
       };
 
   factory Expense.fromMap(Map<String, Object?> m) => Expense(
@@ -75,9 +78,10 @@ class Expense {
         source: (m['source'] as String?) ?? Source.manual,
         photo: m['photo'] as String?,
         fromCash: ((m['from_cash'] as int?) ?? 0) == 1,
+        tripId: m['trip_id'] as int?,
       );
 
-  Expense copyWith({int? amount, String? category, String? note, String? photo}) =>
+  Expense copyWith({int? amount, String? category, String? note, String? photo, int? tripId}) =>
       Expense(
         id: id,
         amount: amount ?? this.amount,
@@ -87,7 +91,44 @@ class Expense {
         source: source,
         photo: photo ?? this.photo,
         fromCash: fromCash,
+        tripId: tripId ?? this.tripId,
       );
+}
+
+class Trip {
+  final int? id;
+  final String name;
+  final String currency; // ISO code (e.g., 'AED', 'THB')
+  final int budget;
+  final DateTime start;
+  final DateTime end;
+
+  const Trip({
+    this.id,
+    required this.name,
+    required this.currency,
+    required this.budget,
+    required this.start,
+    required this.end,
+  });
+
+  Map<String, Object?> toMap() => {
+    if (id != null) 'id': id,
+    'name': name,
+    'currency': currency,
+    'budget': budget,
+    'start': start.millisecondsSinceEpoch,
+    'end': end.millisecondsSinceEpoch,
+  };
+
+  factory Trip.fromMap(Map<String, Object?> m) => Trip(
+    id: m['id'] as int?,
+    name: (m['name'] as String?) ?? '',
+    currency: (m['currency'] as String?) ?? 'INR',
+    budget: (m['budget'] as int?) ?? 0,
+    start: DateTime.fromMillisecondsSinceEpoch((m['start'] as int?) ?? 0),
+    end: DateTime.fromMillisecondsSinceEpoch((m['end'] as int?) ?? 0),
+  );
 }
 
 /// Someone you split with. [balance] is a single signed number: positive means
@@ -283,6 +324,49 @@ class Rule {
         id: m['id'] as int?,
         pattern: (m['pattern'] as String?) ?? '',
         category: Cat.safe(m['category'] as String?),
+      );
+}
+
+/// A trip folder to group expenses, split debts, and convert foreign currency.
+class Trip {
+  final int? id;
+  final String name;
+  final String currency; // 'USD', 'EUR', 'AED', 'THB', etc.
+  final double exchangeRate; // Rate against INR at creation/refresh
+  final int budget;
+  final DateTime start;
+  final DateTime? end;
+
+  const Trip({
+    this.id,
+    required this.name,
+    required this.currency,
+    required this.exchangeRate,
+    this.budget = 0,
+    required this.start,
+    this.end,
+  });
+
+  Map<String, Object?> toMap() => {
+        if (id != null) 'id': id,
+        'name': name,
+        'currency': currency,
+        'rate': exchangeRate,
+        'budget': budget,
+        'start': start.millisecondsSinceEpoch,
+        'end': end?.millisecondsSinceEpoch,
+      };
+
+  factory Trip.fromMap(Map<String, Object?> m) => Trip(
+        id: m['id'] as int?,
+        name: (m['name'] as String?) ?? '',
+        currency: (m['currency'] as String?) ?? 'INR',
+        exchangeRate: (m['rate'] as num?)?.toDouble() ?? 1.0,
+        budget: (m['budget'] as int?) ?? 0,
+        start: DateTime.fromMillisecondsSinceEpoch((m['start'] as int?) ?? 0),
+        end: m['end'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(m['end'] as int)
+            : null,
       );
 }
 
