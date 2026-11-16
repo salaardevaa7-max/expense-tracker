@@ -60,16 +60,15 @@ jobs:
           if gradle_path.exists():
               gradle = gradle_path.read_text()
               lint_config = """
-android {
     lintOptions {
         abortOnError false
         checkReleaseBuilds false
     }
-}
 """
-              # Append to the end of the file
-              with open(gradle_path, 'a') as f:
-                  f.write(lint_config)
+              # Insert into the existing android block
+              if 'android {' in gradle:
+                  gradle = gradle.replace('android {', 'android {' + lint_config)
+                  gradle_path.write_text(gradle)
           PY
 
       - name: Get packages
