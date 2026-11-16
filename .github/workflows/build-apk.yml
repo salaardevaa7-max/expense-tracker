@@ -41,9 +41,9 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        # We explicitly tell Gradle to SKIP Lint (-x lint) and SKIP Unit Tests (-x test).
-        # This bypasses the buggy analysis tool that is causing the build to crash.
-        run: flutter build apk --release --no-shrink --debug --split-per-abi --dart-define=APP_NAME=Hisaab
+        # Use --no-pub because we already ran pub get.
+        # Removing --debug as it conflicts with --release.
+        run: flutter build apk --release --no-shrink --split-per-abi --dart-define=APP_NAME=Hisaab --no-pub
         env:
           # Adding extra memory to Java can help stabilize large builds
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
